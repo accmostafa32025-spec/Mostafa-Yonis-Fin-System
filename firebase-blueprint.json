@@ -1,0 +1,117 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile and permissions stored in Firestore",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "cfo", "accountant", "auditor", "data_entry", "view_only"] },
+        "roleTitleAr": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "email", "role"]
+    },
+    "MemberRecord": {
+      "title": "MemberRecord",
+      "description": "Association member profile and balances",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "memberNo": { "type": "string" },
+        "name": { "type": "string" },
+        "nationalId": { "type": "string" },
+        "department": { "type": "string" },
+        "jobTitle": { "type": "string" },
+        "phone": { "type": "string" },
+        "savingsBalance": { "type": "number" },
+        "advancesBalance": { "type": "number" },
+        "joinDate": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      },
+      "required": ["id", "memberNo", "name", "savingsBalance"]
+    },
+    "MonthlySavingsUpload": {
+      "title": "MonthlySavingsUpload",
+      "description": "Monthly payroll deduction sheet for savings, subscription, and installments",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "monthYear": { "type": "string" },
+        "jobNumber": { "type": "string" },
+        "memberName": { "type": "string" },
+        "openingSavingsBalance": { "type": "number" },
+        "monthlyDeduction": { "type": "number" },
+        "monthlySubscription": { "type": "number" },
+        "monthlySavings": { "type": "number" },
+        "remainingAfterSub": { "type": "number" },
+        "monthlyInstallment": { "type": "number" },
+        "remainingAfterSubAndSavings": { "type": "number" },
+        "debtTotalAmount": { "type": "number" },
+        "installmentMonthsCount": { "type": "number" },
+        "installmentStartMonth": { "type": "string" },
+        "installmentEndMonth": { "type": "string" },
+        "debtCategory": { "type": "string" },
+        "debtDetail": { "type": "string" },
+        "uploadedAt": { "type": "string" },
+        "uploadedBy": { "type": "string" }
+      },
+      "required": ["id", "jobNumber", "memberName", "monthlyDeduction"]
+    },
+    "JournalEntryDoc": {
+      "title": "JournalEntryDoc",
+      "description": "Financial accounting journal vouchers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "entryNo": { "type": "string" },
+        "date": { "type": "string" },
+        "totalDebit": { "type": "number" },
+        "totalCredit": { "type": "number" },
+        "status": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "entryNo", "date", "totalDebit", "totalCredit", "status"]
+    },
+    "AuditLogDoc": {
+      "title": "AuditLogDoc",
+      "description": "System activity and modification audit trail",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "afterValue": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "userId", "action"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile authenticated via Google"
+    },
+    "/members/{memberId}": {
+      "schema": { "$ref": "#/entities/MemberRecord" },
+      "description": "Association members"
+    },
+    "/savings_uploads/{uploadId}": {
+      "schema": { "$ref": "#/entities/MonthlySavingsUpload" },
+      "description": "Monthly payroll savings and debt deductions"
+    },
+    "/journal_entries/{entryId}": {
+      "schema": { "$ref": "#/entities/JournalEntryDoc" },
+      "description": "General accounting journal entries"
+    },
+    "/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLogDoc" },
+      "description": "System audit trail logs"
+    }
+  }
+}

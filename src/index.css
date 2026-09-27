@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Pulvent Official Theme Palette */
+    --pulvent-main: #3632c7;
+    --pulvent-accent: #39e3d7;
+    --pulvent-dark: #0B0D17;
+    --pulvent-card: #131626;
+    --pulvent-card-border: #232742;
+    --pulvent-card-hover: #1b1f36;
+    --pulvent-lavender: #EBEBFA;
+    --pulvent-grayq: #D7D6F4;
+    --pulvent-text-muted: #8E92BC;
+  }
+
+  body {
+    font-family: 'Cairo', 'Tajawal', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 700;
+    background-color: #0B0D17;
+    color: #F1F3FF;
+  }
+
+  /* Enforce bold typography across all screens per user requirement */
+  *, button, input, select, textarea, table, th, td, span, p, h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cairo', 'Tajawal', system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* Custom Scrollbars in Pulvent Tech Style */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #0B0D17;
+}
+::-webkit-scrollbar-thumb {
+  background: #232742;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3632c7;
+}
+
+/* Number formatting font */
+.font-mono-num {
+  font-family: 'JetBrains Mono', 'Segoe UI Mono', monospace;
+  font-feature-settings: "tnum";
+  direction: ltr;
+  display: inline-block;
+  text-align: right;
+}
+
+/* Pulvent signature gradients */
+.bg-pulvent-gradient {
+  background: linear-gradient(135deg, #3632c7 0%, #201e77 50%, #0B0D17 100%);
+}
+
+.bg-pulvent-header {
+  background: linear-gradient(90deg, #101222 0%, #171647 45%, #0B0D17 100%);
+}
+
+.bg-pulvent-badge {
+  background: linear-gradient(90deg, rgba(54, 50, 199, 0.25) 0%, rgba(57, 227, 215, 0.15) 100%);
+  border: 1px solid rgba(57, 227, 215, 0.35);
+  color: #39e3d7;
+}
+
+.text-pulvent-gradient {
+  background: linear-gradient(90deg, #ffffff 0%, #39e3d7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.text-pulvent-main-gradient {
+  background: linear-gradient(90deg, #716df7 0%, #39e3d7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.btn-pulvent-primary {
+  background: linear-gradient(90deg, #3632c7 0%, #39e3d7 100%);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 4px 20px rgba(54, 50, 199, 0.35);
+  transition: all 0.3s ease;
+}
+
+.btn-pulvent-primary:hover {
+  box-shadow: 0 6px 24px rgba(57, 227, 215, 0.45);
+  transform: translateY(-1px);
+}
+
+.card-pulvent {
+  background: #131626;
+  border: 1px solid #232742;
+  border-radius: 0.875rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-pulvent:hover {
+  border-color: rgba(57, 227, 215, 0.4);
+}
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}

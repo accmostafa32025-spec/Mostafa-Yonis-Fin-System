@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (request.auth.uid == userId || request.auth.token.email != null);
+    }
+
+    // Members
+    match /members/{memberId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Monthly Savings & Debt Deductions
+    match /savings_uploads/{uploadId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Journal entries
+    match /journal_entries/{entryId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Audit logs
+    match /audit_logs/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // immutable audit log
+    }
+
+    // General fallback for system collections (settings, accounts, etc.)
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
