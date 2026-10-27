@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { auth } from '../../services/firebase';
 import {
   FileEdit,
   Plus,
@@ -277,8 +278,11 @@ export const EntryVoucherFormView: React.FC<EntryVoucherFormViewProps> = ({
       totalCredit,
       status: targetStatus,
       createdBy: editingEntry?.createdBy || currentUser.fullName,
-      reviewedBy: targetStatus === 'approved' || targetStatus === 'under_review' ? currentUser.fullName : editingEntry?.reviewedBy,
+      createdByUid: editingEntry?.createdByUid || auth.currentUser?.uid || currentUser.id,
+      reviewedBy: editingEntry?.reviewedBy,
+      reviewedByUid: editingEntry?.reviewedByUid,
       approvedBy: targetStatus === 'approved' ? currentUser.fullName : editingEntry?.approvedBy,
+      approvedByUid: targetStatus === 'approved' ? auth.currentUser?.uid : editingEntry?.approvedByUid,
       reviewerNotes: reviewerNotes || editingEntry?.reviewerNotes,
       hasAnomalies: validation.anomalies.length > 0,
       anomaliesSummary: validation.anomalies.map(

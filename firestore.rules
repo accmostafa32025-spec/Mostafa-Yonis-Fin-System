@@ -1,49 +1,190 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
-    function isAuthenticated() {
+    function signedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    function roleDocExists() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    // User profiles
+    function currentRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function hasRole(role) {
+      return roleDocExists() && currentRole() == role;
+    }
+
+    function hasAnyRole(roles) {
+      return roleDocExists() && currentRole() in roles;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        (request.auth.token.admin == true || hasRole('admin'));
+    }
+
+    function isActiveUser() {
+      return roleDocExists() && currentRole() != 'pending';
+    }
+
+    function canEnterAccountingData() {
+      return hasAnyRole(['accounts_manager', 'accountant', 'data_entry']);
+    }
+
+    function canReviewEntries() {
+      return hasRole('accounts_manager');
+    }
+
+    function canApproveEntries() {
+      return hasRole('cfo');
+    }
+
+    function canMaintainMasterData() {
+      return isAdmin() || hasRole('accounts_manager');
+    }
+
+    function canViewPayroll() {
+      return isAdmin() || hasAnyRole(['cfo', 'accounts_manager']);
+    }
+
+    function isKnownRole(role) {
+      return role in [
+        'pending',
+        'data_entry',
+        'accountant',
+        'auditor',
+        'accounts_manager',
+        'cfo',
+        'admin',
+        'view_only'
+      ];
+    }
+
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && (request.auth.uid == userId || request.auth.token.email != null);
+      allow get: if signedIn() &&
+        (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if signedIn() &&
+        request.auth.uid == userId &&
+        request.resource.data.uid == userId &&
+        request.resource.data.role == 'pending';
+      allow update: if signedIn() &&
+        request.auth.uid == userId &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['displayName', 'email', 'photoURL', 'lastLogin']);
+      allow update: if isAdmin() &&
+        isKnownRole(request.resource.data.role);
+      allow delete: if isAdmin() && userId != request.auth.uid;
     }
 
-    // Members
-    match /members/{memberId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+    match /accounts/{documentId} {
+      allow read: if isActiveUser();
+      allow write: if canMaintainMasterData();
     }
 
-    // Monthly Savings & Debt Deductions
-    match /savings_uploads/{uploadId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+    match /cost_centers/{documentId} {
+      allow read: if isActiveUser();
+      allow write: if canMaintainMasterData();
     }
 
-    // Journal entries
+    match /budgets/{documentId} {
+      allow read: if isActiveUser();
+      allow write: if canMaintainMasterData();
+    }
+
+    match /settings/{documentId} {
+      allow read: if isActiveUser();
+      allow write: if isAdmin() || hasRole('cfo');
+    }
+
     match /journal_entries/{entryId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow read: if isActiveUser();
+
+      // Entry preparers may create drafts; direct posting is never allowed.
+      allow create: if canEnterAccountingData() &&
+        request.resource.data.status == 'draft' &&
+        request.resource.data.createdByUid == request.auth.uid;
+
+      // Preparers may change only their own unposted drafts.
+      allow update: if canEnterAccountingData() &&
+        resource.data.createdByUid == request.auth.uid &&
+        resource.data.status == 'draft' &&
+        request.resource.data.status in ['draft', 'under_review'] &&
+        request.resource.data.createdByUid == resource.data.createdByUid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'entryNo', 'date', 'period', 'fiscalYear', 'entryType',
+          'documentNo', 'documentType', 'description', 'lines',
+          'totalDebit', 'totalCredit', 'status', 'updatedAt',
+          'hasAnomalies', 'anomaliesSummary'
+        ]);
+
+      // Accounts manager reviews, but cannot edit accounting values or approve.
+      allow update: if canReviewEntries() &&
+        resource.data.createdByUid != request.auth.uid &&
+        resource.data.status in ['draft', 'under_review'] &&
+        request.resource.data.status in ['under_review', 'rejected'] &&
+        request.resource.data.reviewedByUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'reviewedBy', 'reviewedByUid', 'reviewerNotes', 'updatedAt'
+        ]);
+
+      // CFO is the sole financial approver and cannot approve their own entry
+      // or an entry without a separate accounts-manager review.
+      allow update: if canApproveEntries() &&
+        resource.data.status == 'under_review' &&
+        resource.data.createdByUid is string &&
+        resource.data.createdByUid != request.auth.uid &&
+        resource.data.reviewedByUid is string &&
+        resource.data.reviewedByUid != request.auth.uid &&
+        request.resource.data.approvedByUid == request.auth.uid &&
+        request.resource.data.status in ['approved', 'rejected'] &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'approvedBy', 'approvedByUid', 'updatedAt',
+          'cfoOverride', 'cfoOverrideBy', 'cfoOverrideReason', 'cfoOverrideTimestamp'
+        ]);
+
+      // Journal entries remain traceable; corrections use reversal entries.
+      allow delete: if false;
     }
 
-    // Audit logs
+    match /members/{documentId} {
+      allow read: if isActiveUser();
+      allow write: if canEnterAccountingData();
+    }
+
+    match /suppliers/{documentId} {
+      allow read: if isActiveUser();
+      allow write: if canEnterAccountingData();
+    }
+
+    match /bank_accounts/{documentId} {
+      allow read: if isActiveUser();
+      allow write: if canMaintainMasterData();
+    }
+
+    match /checks/{documentId} {
+      allow read: if isActiveUser();
+      allow write: if canEnterAccountingData();
+    }
+
+    match /savings_uploads/{documentId} {
+      allow read, write: if canViewPayroll();
+    }
+
     match /audit_logs/{logId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update, delete: if false; // immutable audit log
+      allow read: if isAdmin() || hasAnyRole(['cfo', 'accounts_manager', 'auditor']);
+      allow create: if isActiveUser() &&
+        request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
     }
 
-    // General fallback for system collections (settings, accounts, etc.)
+    // Deny by default: each collection must receive an explicit role policy.
     match /{document=**} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if false;
     }
   }
 }

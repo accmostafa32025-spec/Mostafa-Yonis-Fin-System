@@ -42,8 +42,8 @@ export async function syncUserProfileToFirestore(user: FirebaseUser): Promise<Us
       email: user.email,
       displayName: user.displayName || 'مستخدم النظام',
       photoURL: user.photoURL || '',
-      role: 'cfo', // First user / admin privilege
-      roleTitleAr: 'المدير المالي والرقابي المعتمد',
+      role: 'pending', // Privileges must be assigned by an administrator
+      roleTitleAr: 'بانتظار تعيين الصلاحية من مسؤول النظام',
       lastLogin: new Date().toISOString(),
     };
   }
