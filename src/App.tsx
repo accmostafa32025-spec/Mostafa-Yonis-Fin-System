@@ -287,9 +287,9 @@ export default function App() {
     const newLog: AuditLog = {
       id: `log-${Date.now()}`,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      userId: 'usr-1',
-      userName: 'أ.د. إبراهيم عبد الرحمن',
-      userRole: 'المدير المالي (CFO)',
+      userId: auth.currentUser?.uid || 'local-user',
+      userName: auth.currentUser?.displayName || 'مستخدم محلي',
+      userRole: auth.currentUser ? 'مستخدم مسجل' : 'محلي غير معتمد',
       action,
       targetDocType: 'journal_entry',
       targetDocId: 'JV-SYS',
