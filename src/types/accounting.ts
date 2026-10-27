@@ -227,8 +227,11 @@ export interface JournalEntry {
   totalCredit: number;
   status: EntryStatus;
   createdBy: string;
+  createdByUid?: string;
   reviewedBy?: string;
+  reviewedByUid?: string;
   approvedBy?: string;
+  approvedByUid?: string;
   rejectedBy?: string;
   reversalOfEntryNo?: string;
   reversalReason?: string;

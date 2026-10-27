@@ -31,16 +31,20 @@ service cloud.firestore {
       return roleDocExists() && currentRole() != 'pending';
     }
 
-    function canMaintainMasterData() {
-      return isAdmin() || hasAnyRole(['cfo', 'accounts_manager']);
-    }
-
     function canEnterAccountingData() {
-      return isAdmin() || hasAnyRole(['cfo', 'accounts_manager', 'accountant', 'data_entry']);
+      return hasAnyRole(['accounts_manager', 'accountant', 'data_entry']);
     }
 
     function canReviewEntries() {
-      return isAdmin() || hasAnyRole(['cfo', 'accounts_manager', 'auditor']);
+      return hasRole('accounts_manager');
+    }
+
+    function canApproveEntries() {
+      return hasRole('cfo');
+    }
+
+    function canMaintainMasterData() {
+      return isAdmin() || hasRole('accounts_manager');
     }
 
     function canViewPayroll() {
@@ -64,20 +68,14 @@ service cloud.firestore {
       allow get: if signedIn() &&
         (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
-
-      // Self-registration creates an unprivileged profile only.
       allow create: if signedIn() &&
         request.auth.uid == userId &&
         request.resource.data.uid == userId &&
         request.resource.data.role == 'pending';
-
-      // Users may update contact metadata, never their own role or permissions.
       allow update: if signedIn() &&
         request.auth.uid == userId &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['displayName', 'email', 'photoURL', 'lastLogin']);
-
-      // Only a privileged administrator can assign or revoke roles.
       allow update: if isAdmin() &&
         isKnownRole(request.resource.data.role);
       allow delete: if isAdmin() && userId != request.auth.uid;
@@ -105,17 +103,52 @@ service cloud.firestore {
 
     match /journal_entries/{entryId} {
       allow read: if isActiveUser();
+
+      // Entry preparers may create drafts; direct posting is never allowed.
       allow create: if canEnterAccountingData() &&
-        request.resource.data.status == 'draft';
-      allow update: if isAdmin() || hasRole('cfo') ||
-        (hasRole('accounts_manager')) ||
-        (
-          hasAnyRole(['accountant', 'data_entry']) &&
-          resource.data.status in ['draft', 'rejected'] &&
-          request.resource.data.status in ['draft', 'under_review']
-        );
-      allow delete: if isAdmin() || hasRole('cfo') ||
-        (hasRole('accounts_manager') && resource.data.status in ['draft', 'rejected']);
+        request.resource.data.status == 'draft' &&
+        request.resource.data.createdByUid == request.auth.uid;
+
+      // Preparers may change only their own unposted drafts.
+      allow update: if canEnterAccountingData() &&
+        resource.data.createdByUid == request.auth.uid &&
+        resource.data.status == 'draft' &&
+        request.resource.data.status in ['draft', 'under_review'] &&
+        request.resource.data.createdByUid == resource.data.createdByUid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'entryNo', 'date', 'period', 'fiscalYear', 'entryType',
+          'documentNo', 'documentType', 'description', 'lines',
+          'totalDebit', 'totalCredit', 'status', 'updatedAt',
+          'hasAnomalies', 'anomaliesSummary'
+        ]);
+
+      // Accounts manager reviews, but cannot edit accounting values or approve.
+      allow update: if canReviewEntries() &&
+        resource.data.createdByUid != request.auth.uid &&
+        resource.data.status in ['draft', 'under_review'] &&
+        request.resource.data.status in ['under_review', 'rejected'] &&
+        request.resource.data.reviewedByUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'reviewedBy', 'reviewedByUid', 'reviewerNotes', 'updatedAt'
+        ]);
+
+      // CFO is the sole financial approver and cannot approve their own entry
+      // or an entry without a separate accounts-manager review.
+      allow update: if canApproveEntries() &&
+        resource.data.status == 'under_review' &&
+        resource.data.createdByUid is string &&
+        resource.data.createdByUid != request.auth.uid &&
+        resource.data.reviewedByUid is string &&
+        resource.data.reviewedByUid != request.auth.uid &&
+        request.resource.data.approvedByUid == request.auth.uid &&
+        request.resource.data.status in ['approved', 'rejected'] &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'approvedBy', 'approvedByUid', 'updatedAt',
+          'cfoOverride', 'cfoOverrideBy', 'cfoOverrideReason', 'cfoOverrideTimestamp'
+        ]);
+
+      // Journal entries remain traceable; corrections use reversal entries.
+      allow delete: if false;
     }
 
     match /members/{documentId} {
@@ -144,7 +177,8 @@ service cloud.firestore {
 
     match /audit_logs/{logId} {
       allow read: if isAdmin() || hasAnyRole(['cfo', 'accounts_manager', 'auditor']);
-      allow create: if isActiveUser();
+      allow create: if isActiveUser() &&
+        request.resource.data.userId == request.auth.uid;
       allow update, delete: if false;
     }
 

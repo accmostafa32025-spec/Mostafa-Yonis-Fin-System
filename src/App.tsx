@@ -61,6 +61,7 @@ import {
   testConnection,
   logAuditToFirestore,
 } from './services/firestoreDataService';
+import { auth } from './services/firebase';
 
 export default function App() {
   // Master Accounting State
@@ -142,6 +143,7 @@ export default function App() {
               ...e,
               status: 'approved',
               approvedBy: authorizedBy || 'أ.د. إبراهيم عبد الرحمن (المدير المالي CFO)',
+              approvedByUid: auth.currentUser?.uid || '',
               cfoOverride: overrideReason ? true : e.cfoOverride,
               cfoOverrideBy: authorizedBy || e.cfoOverrideBy,
               cfoOverrideReason: overrideReason || e.cfoOverrideReason,
@@ -179,13 +181,13 @@ export default function App() {
       documentNo: `عكس-${orig.entryNo}`,
       documentType: 'settlement',
       description: `قيد عكسي للقيد رقم (${orig.entryNo}) - سبب العكس: ${reason}`,
-      status: 'approved',
+      status: 'under_review',
       fiscalYear: settings.fiscalYear,
       period: `${settings.fiscalYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
       totalDebit: orig.totalDebit,
       totalCredit: orig.totalCredit,
-      createdBy: 'رئيس الحسابات',
-      approvedBy: 'المدير المالي CFO',
+      createdBy: auth.currentUser?.displayName || 'مستخدم الجمعية',
+      createdByUid: auth.currentUser?.uid || '',
       createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
       updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
       lines: orig.lines.map((line, idx) => ({
